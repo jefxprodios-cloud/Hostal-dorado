@@ -122,7 +122,7 @@ async function buscar(){
   }catch(err){
     toast(err.message, true);
   }finally{
-    btn.disabled = false; btn.textContent = 'Ver disponibilidad';
+    setLoadingState(false);
   }
 }
 $('#btn-buscar').addEventListener('click', buscar);
@@ -204,5 +204,49 @@ async function enviarPreReserva(){
     $('#pr-enviar').disabled = false;
   }
 }
+
+function setupRippleEffect(){
+  document.addEventListener('click', e => {
+    const trigger = e.target.closest('button, .btn, .btn-buscar, .btn-reservar, .modal-actions .btn, .wa-float');
+    if (!trigger) return;
+    const rect = trigger.getBoundingClientRect();
+    const circle = document.createElement('span');
+    const size = Math.max(rect.width, rect.height);
+    circle.className = 'ripple';
+    circle.style.width = circle.style.height = size + 'px';
+    circle.style.left = (e.clientX - rect.left) + 'px';
+    circle.style.top = (e.clientY - rect.top) + 'px';
+    trigger.appendChild(circle);
+    setTimeout(() => circle.remove(), 600);
+  });
+}
+
+function setupScrollReveal(){
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+        observer.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.12 });
+
+  const targets = document.querySelectorAll('.room-card-st, .amen, .result-card, .section-head, .search-card, .contact-info, .contact-map');
+  targets.forEach(el => {
+    el.classList.add('reveal');
+    observer.observe(el);
+  });
+}
+
+function setLoadingState(isLoading){
+  const btn = $('#btn-buscar');
+  if (!btn) return;
+  btn.disabled = isLoading;
+  btn.classList.toggle('loading', isLoading);
+  btn.textContent = isLoading ? 'Consultando' : 'Ver disponibilidad';
+}
+
+setupRippleEffect();
+setupScrollReveal();
 
 $(window).addEventListener('keydown', e => { if (e.key === 'Escape') cerrarModal(); });

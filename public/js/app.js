@@ -297,12 +297,38 @@ function chart7days(last7, field){
    RENDER MASTER — decide qué pedir según la vista activa
    ============================================================ */
 function renderAll(){
-  if(currentView==='resumen') renderResumen();
-  if(currentView==='habitaciones') renderHabitaciones();
-  if(currentView==='huespedes') { /* se refresca solo al buscar */ }
-  if(currentView==='finanzas') renderFinanzas();
-  if(currentView==='reservas') renderReservas();
-  if(currentView==='inventario') renderInventario();
+  if(!session) return;
+  const viewName = currentView;
+  showViewLoader(viewName);
+  requestAnimationFrame(() => {
+    if(viewName==='resumen') renderResumen();
+    if(viewName==='habitaciones') renderHabitaciones();
+    if(viewName==='huespedes') { /* se refresca solo al buscar */ }
+    if(viewName==='finanzas') renderFinanzas();
+    if(viewName==='reservas') renderReservas();
+    if(viewName==='inventario') renderInventario();
+    observeNewRevealTargets();
+    setTimeout(() => hideViewLoader(viewName), 180);
+  });
+}
+
+function observeNewRevealTargets(){
+  const targets = document.querySelectorAll('.kpi, .section-block, .room-card, .side-item, .modal, .login-box');
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+        observer.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.12 });
+
+  targets.forEach(el => {
+    if (!el.classList.contains('reveal')) {
+      el.classList.add('reveal');
+    }
+    observer.observe(el);
+  });
 }
 
 /* ------------------------------------------------------------
@@ -1307,3 +1333,64 @@ $$('#side-panel .side-tabs button').forEach(btn=>{
     renderSidePanel();
   });
 });
+
+function setupViewLoaders(){
+  $$('.view').forEach(view => {
+    if (view.querySelector('.view-loader')) return;
+    const loader = document.createElement('div');
+    loader.className = 'view-loader';
+    loader.innerHTML = '<div class="spinner"></div><span>Cargando…</span>';
+    view.appendChild(loader);
+  });
+}
+
+function showViewLoader(viewName){
+  const target = document.getElementById('view-' + viewName);
+  if (!target) return;
+  const loader = target.querySelector('.view-loader');
+  if (loader) loader.classList.add('show');
+}
+
+function hideViewLoader(viewName){
+  const target = document.getElementById('view-' + viewName);
+  if (!target) return;
+  const loader = target.querySelector('.view-loader');
+  if (loader) loader.classList.remove('show');
+}
+
+function setupRippleEffect(){
+  document.addEventListener('click', e => {
+    const trigger = e.target.closest('button, .btn, .pill-btn, .qa-btn, .btn-primary, .btn-logout, .role-toggle button');
+    if (!trigger) return;
+    const rect = trigger.getBoundingClientRect();
+    const circle = document.createElement('span');
+    const diameter = Math.max(rect.width, rect.height);
+    circle.className = 'ripple';
+    circle.style.width = circle.style.height = diameter + 'px';
+    circle.style.left = (e.clientX - rect.left) + 'px';
+    circle.style.top = (e.clientY - rect.top) + 'px';
+    trigger.appendChild(circle);
+    setTimeout(() => circle.remove(), 600);
+  });
+}
+
+function setupScrollReveal(){
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+        observer.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.12 });
+
+  const revealTargets = document.querySelectorAll('.kpi, .section-block, .room-card, .side-item, .modal, .login-box');
+  revealTargets.forEach(el => {
+    el.classList.add('reveal');
+    observer.observe(el);
+  });
+}
+
+setupViewLoaders();
+setupRippleEffect();
+setupScrollReveal();
