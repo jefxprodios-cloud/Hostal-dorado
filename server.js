@@ -31,6 +31,7 @@ const notasRoutes = require('./src/routes/notas.routes');
 const incidenciasRoutes = require('./src/routes/incidencias.routes');
 const scheduleRoutes = require('./src/routes/schedule.routes');
 const publicRoutes = require('./src/routes/public.routes');
+const reclamacionesRoutes = require('./src/routes/reclamaciones.routes');
 const errorHandler = require('./src/middleware/errorHandler');
 
 const app = express();
@@ -56,6 +57,7 @@ app.use('/api/reservations', reservationsRoutes);
 app.use('/api/notas', notasRoutes);
 app.use('/api/incidencias', incidenciasRoutes);
 app.use('/api/schedule', scheduleRoutes);
+app.use('/api/reclamaciones', reclamacionesRoutes);
 // Rutas públicas (sitio web): SIN auth, solo disponibilidad y pre-reservas.
 app.use('/api/public', publicRoutes);
 

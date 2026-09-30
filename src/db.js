@@ -179,11 +179,31 @@ db.exec(`
     created_at     TEXT NOT NULL
   );
 
+  -- Libro de reclamaciones: registro formal del cliente con tipo,
+  -- detalle del hecho, petición y la fecha/hora de apertura.
+  CREATE TABLE IF NOT EXISTS reclamaciones (
+    id            TEXT PRIMARY KEY,
+    tipo          TEXT NOT NULL CHECK (tipo IN ('reclamo','queja')),
+    nombre        TEXT NOT NULL,
+    apellido      TEXT NOT NULL,
+    dni           TEXT NOT NULL,
+    telefono      TEXT NOT NULL,
+    correo        TEXT,
+    detalle       TEXT NOT NULL,
+    peticion      TEXT NOT NULL,
+    fecha_reclamo TEXT NOT NULL,
+    hora_reclamo  TEXT NOT NULL,
+    estado        TEXT NOT NULL DEFAULT 'pendiente'
+                  CHECK (estado IN ('pendiente','atendido','cerrado')),
+    created_at    TEXT NOT NULL
+  );
+
   CREATE INDEX IF NOT EXISTS idx_stays_room   ON stays(room_id);
   CREATE INDEX IF NOT EXISTS idx_reservations_dates ON reservations(checkin, checkout);
   CREATE INDEX IF NOT EXISTS idx_stays_guest  ON stays(guest_id);
   CREATE INDEX IF NOT EXISTS idx_finance_fecha ON finance(fecha);
   CREATE INDEX IF NOT EXISTS idx_guests_doc    ON guests(tipo_documento, numero_documento);
+  CREATE INDEX IF NOT EXISTS idx_reclamaciones_tipo ON reclamaciones(tipo, fecha_reclamo, hora_reclamo);
 `);
 
 // Migraciones para bases existentes: SQLite no permite modificar columnas
