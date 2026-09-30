@@ -68,6 +68,7 @@
       <button data-view="finanzas"><span class="ic" data-icon="finanzas"></span> Finanzas</button>
       <button data-view="reservas"><span class="ic" data-icon="reservas"></span> Reservas</button>
       <button data-view="inventario"><span class="ic" data-icon="inventario"></span> Inventario</button>
+      <button data-view="reclamaciones"><span class="ic" data-icon="incidencia"></span> Libro de Reclamos</button>
     </nav>
     <div class="sidebar-foot">
       <div class="conn-chip" id="conn-chip"><i></i><span>Conectando…</span></div>
@@ -344,6 +345,47 @@
             <table>
               <thead><tr><th>Producto</th><th>Categoría</th><th>Stock</th><th>Precio</th><th>Vender</th><th></th></tr></thead>
               <tbody id="tbl-inventario"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- LIBRO DE RECLAMOS -->
+      <section class="view" id="view-reclamaciones">
+        <div class="section-block">
+          <h3>
+            Libro de Reclamaciones
+            <button class="btn btn-gold btn-sm" id="btn-new-reclamo">+ Nuevo reclamo</button>
+          </h3>
+          <div class="form-row" style="margin-bottom:14px;">
+            <div class="form-field" style="flex:1;min-width:220px;">
+              <label>Buscar por nombre, apellido, DNI o contacto</label>
+              <input type="text" id="reclamo-search" placeholder="Ej. Gómez, 46581234 o 999123456">
+            </div>
+            <div class="form-field" style="min-width:180px;">
+              <label>Tipo</label>
+              <select id="reclamo-filter-tipo">
+                <option value="">Todos</option>
+                <option value="reclamo">Reclamo</option>
+                <option value="queja">Queja</option>
+              </select>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Fecha / hora</th>
+                  <th>Cliente</th>
+                  <th>DNI / contacto</th>
+                  <th>Tipo</th>
+                  <th>Detalle</th>
+                  <th>Petición</th>
+                  <th>Estado</th>
+                </tr>
+              </thead>
+              <tbody id="tbl-reclamaciones"></tbody>
             </table>
           </div>
         </div>

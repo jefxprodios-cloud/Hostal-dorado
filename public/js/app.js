@@ -13,7 +13,8 @@ const $$ = sel => Array.from(document.querySelectorAll(sel));
 
 const money = n => 'S/ ' + Number(n || 0).toFixed(2);
 const todayISO = () => new Date().toISOString().slice(0, 10);
-function escapeHTML(s){ return String(s ?? '').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function escapeHTML(s){ return String(s ?? '').normalize('NFC').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function normalizeText(value){ return String(value ?? '').normalize('NFC').replace(/\uFFFD/g, ''); }
 function fmtDate(iso){ const d = new Date(iso+'T12:00:00'); return d.toLocaleDateString('es-PE',{day:'2-digit',month:'short'}); }
 /* Fecha + hora para ventanas de 12 h. Acepta 'YYYY-MM-DD' (día completo)
    o ISO con tiempo ('...T18:00:00.000Z'), devolviendo "18 sep · 18:00". */
@@ -138,6 +139,9 @@ function applyRoleRestrictions(){
   $$('#inv-form-block input, #btn-add-inv').forEach(el=> el.disabled = !isAdmin);
   $('#btn-add-room').style.display = isAdmin ? '' : 'none';
   $('#btn-backup').style.display = isAdmin ? '' : 'none';
+  const reclamoBtn = document.querySelector('.navlist button[data-view="reclamaciones"]');
+  if (reclamoBtn) reclamoBtn.style.display = isAdmin ? '' : 'none';
+  $('#btn-new-reclamo').style.display = isAdmin ? '' : 'none';
   // Acciones rápidas: ingreso de productos y gastos son solo admin; ventas, ambos.
   $('#btn-qa-ingreso').disabled = !isAdmin;
   $('#btn-qa-gasto').disabled = !isAdmin;
@@ -189,6 +193,8 @@ const pageMeta = {
   finanzas:{title:'Finanzas', sub:'Ingresos, egresos y flujo de caja'},
   reservas:{title:'Reservas', sub:'Pre-reservas del sitio público por confirmar'},
   inventario:{title:'Inventario', sub:'Stock de productos y ventas al huésped'},
+  reclamaciones:{title:'Libro de Reclamaciones', sub:'Historial y registro formal de quejas y reclamos'},
+  reclamos:{title:'Libro de Reclamaciones', sub:'Historial y registro formal de quejas y reclamos'},
 };
 
 $$('.navlist button').forEach(btn=>{
@@ -198,18 +204,106 @@ $$('.navlist button').forEach(btn=>{
     btn.classList.add('active');
     $$('.view').forEach(v=>v.classList.remove('active'));
     $('#view-'+currentView).classList.add('active');
-    $('#page-title').textContent = pageMeta[currentView].title;
-    $('#page-sub').textContent = pageMeta[currentView].sub;
+    const viewMeta = pageMeta[currentView] || pageMeta.reclamaciones;
+    $('#page-title').textContent = viewMeta.title;
+    $('#page-sub').textContent = viewMeta.sub;
     if(window.innerWidth<=820){ $('#sidebar').classList.remove('open'); $('#sidebar-scrim').classList.remove('open'); }
     renderAll();
   });
 });
-$('#menu-toggle').addEventListener('click', ()=>{
-  $('#sidebar').classList.toggle('open'); $('#sidebar-scrim').classList.toggle('open');
-});
-$('#sidebar-scrim').addEventListener('click', ()=>{
-  $('#sidebar').classList.remove('open'); $('#sidebar-scrim').classList.remove('open');
-});
+$('#btn-new-reclamo').addEventListener('click', openReclamoModal);
+$('#reclamo-search').addEventListener('input', renderReclamaciones);
+$('#reclamo-filter-tipo').addEventListener('change', renderReclamaciones);
+
+async function renderReclamaciones(){
+  const tbody = $('#tbl-reclamaciones');
+  if (!tbody) return;
+  const buscar = $('#reclamo-search').value.trim();
+  const tipo = $('#reclamo-filter-tipo').value;
+  const params = new URLSearchParams();
+  if (buscar) params.set('buscar', buscar);
+  if (tipo) params.set('tipo', tipo);
+  tbody.innerHTML = '<tr><td colspan="8" class="empty-note">Cargando reclamos...</td></tr>';
+  try{
+    const { reclamaciones } = await api('/reclamaciones' + (params.size ? `?${params}` : ''));
+    $('#tbl-reclamaciones').innerHTML = reclamaciones.map(r => {
+      const estado = {
+        pendiente: '<span class="pill pill-warn">Pendiente</span>',
+        en_revision: '<span class="pill pill-danger">En revisión</span>',
+        resuelta: '<span class="pill pill-ok">Resuelta</span>',
+      }[r.estado] || '<span class="pill pill-warn">Pendiente</span>';
+
+      const nombreCompleto = normalizeText(`${r.nombre || ''} ${r.apellido || ''}`.trim() || '—');
+      const detalle = normalizeText(r.detalle || '—');
+      const peticion = normalizeText(r.peticion || '—');
+      const fecha = normalizeText(r.fecha_reclamo || '—');
+      const hora = normalizeText(r.hora_reclamo || '—');
+      const dni = normalizeText(r.dni || '—');
+      const telefono = normalizeText(r.telefono || '—');
+
+      return `
+        <tr>
+          <td>${escapeHTML(r.id)}</td>
+          <td>${escapeHTML(fecha)}<br><small>${escapeHTML(hora)}</small></td>
+          <td>${escapeHTML(nombreCompleto)}</td>
+          <td>${escapeHTML(dni)}<br><small>${escapeHTML(telefono)}</small></td>
+          <td>${r.tipo === 'queja' ? 'Queja' : 'Reclamo'}</td>
+          <td>${escapeHTML(detalle)}</td>
+          <td>${escapeHTML(peticion)}</td>
+          <td>${estado}</td>
+        </tr>
+      `;
+    }).join('') || `<tr><td colspan="8" class="empty-note">No hay reclamos ni quejas registradas.</td></tr>`;
+  }catch(err){
+    tbody.innerHTML = `<tr><td colspan="8" class="empty-note">${escapeHTML(err.message)}</td></tr>`;
+  }
+}
+
+function openReclamoModal(){
+  if(session?.role !== 'admin'){ toast('Solo el administrador puede registrar reclamos', true); return; }
+  openModal(`
+    <h3>Registrar reclamo</h3>
+    <p class="modal-sub">Completa los datos del cliente y el motivo de su reclamo o queja.</p>
+    <div class="modal-grid">
+      <div class="field"><label>Tipo</label><select id="rec-tipo"><option value="reclamo">Reclamo</option><option value="queja">Queja</option></select></div>
+      <div class="field"><label>DNI</label><input id="rec-dni" maxlength="20" required></div>
+      <div class="field"><label>Nombre</label><input id="rec-nombre" maxlength="120" required></div>
+      <div class="field"><label>Apellido</label><input id="rec-apellido" maxlength="120" required></div>
+      <div class="field"><label>Teléfono</label><input id="rec-telefono" maxlength="40" required></div>
+      <div class="field"><label>Correo (opcional)</label><input id="rec-correo" type="email" maxlength="160"></div>
+    </div>
+    <div class="field"><label>Detalle del reclamo</label><textarea id="rec-detalle" rows="3" maxlength="1500" required></textarea></div>
+    <div class="field"><label>Petición del cliente</label><textarea id="rec-peticion" rows="3" maxlength="1500" required></textarea></div>
+    <div class="modal-actions">
+      <button class="btn" id="modal-cancel">Cancelar</button>
+      <button class="btn btn-gold" id="rec-save">Registrar reclamo</button>
+    </div>`);
+  $('#modal-cancel').onclick = closeModal;
+  $('#rec-save').onclick = async ()=>{
+    const button = $('#rec-save');
+    const body = {
+      tipo: $('#rec-tipo').value,
+      dni: $('#rec-dni').value.trim(),
+      nombre: $('#rec-nombre').value.trim(),
+      apellido: $('#rec-apellido').value.trim(),
+      telefono: $('#rec-telefono').value.trim(),
+      correo: $('#rec-correo').value.trim(),
+      detalle: $('#rec-detalle').value.trim(),
+      peticion: $('#rec-peticion').value.trim(),
+    };
+    if(!body.dni || !body.nombre || !body.apellido || !body.telefono || !body.detalle || !body.peticion){
+      toast('Completa todos los campos obligatorios', true); return;
+    }
+    button.disabled = true;
+    try{
+      await api('/reclamaciones', { method:'POST', body });
+      closeModal();
+      await renderReclamaciones();
+      toast('Reclamo registrado correctamente');
+    }catch(err){ toast(err.message, true); }
+    finally{ if($('#rec-save')) $('#rec-save').disabled = false; }
+  };
+}
 
 /* ============================================================
    RELOJ
@@ -307,6 +401,7 @@ function renderAll(){
     if(viewName==='finanzas') renderFinanzas();
     if(viewName==='reservas') renderReservas();
     if(viewName==='inventario') renderInventario();
+    if(viewName==='reclamaciones') renderReclamaciones();
     observeNewRevealTargets();
     setTimeout(() => hideViewLoader(viewName), 180);
   });
